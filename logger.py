@@ -1,3 +1,3 @@
 def log(*message: str) -> None:
-    if __debug__:
+    if not __debug__:
         print(message)
