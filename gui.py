@@ -1,10 +1,11 @@
 import customtkinter as tk
 import requests
-from scraper import request_search, request_manga_data, request_chapter_data, Manga
+from scraper import request_search, request_manga_data, request_chapter_data, Manga, create_folder_structure_and_fill_chapters
 from PIL import Image, ImageTk, ImageOps, ImageFilter
 from typing import Tuple, List
 from tkinter import font
 from time import sleep
+from threading import Thread
 
 tk.set_appearance_mode("System")
 tk.set_default_color_theme("dark-blue")
@@ -39,34 +40,40 @@ class MangaSearchFrame(tk.CTkScrollableFrame):
 class MangaDetailsChaptersFrame(tk.CTkScrollableFrame):
     def __init__(self, master, chapters: List[Tuple[str, str]]):
         super().__init__(master)
+        self.parent = master
         self.checked_chapters = set()
         self.checkboxes = {}
 
         checkbox_font = tk.CTkFont(size=14, family="Meiryo")
 
         for i, chapter in enumerate(chapters):
-            self.checkboxes[i] = tk.CTkCheckBox(self, text=chapter[0], onvalue=chapter[1], offvalue=None,
-                                                command=lambda l=chapter[1], _i=i: self.on_checkbox_checked(l, _i),
+            self.checkboxes[i] = tk.CTkCheckBox(self, text=chapter[0], onvalue=(chapter[0], chapter[1]), offvalue=None,
+                                                command=lambda c=(chapter[0], chapter[1]): self.on_checkbox_checked(chapter_info=c),
                                                 font=checkbox_font) # lambda i, _l are a workaround, if not there the values are the last one's
-            self.checkboxes[i].grid(row=i, column=0, padx=10, pady=10, sticky="e")
+            self.checkboxes[i].grid(row=i, column=0, columnspan=3, padx=10, pady=10, sticky="e")
 
-    def on_checkbox_checked(self, chapter_link: str, i: int):
-        if chapter_link in self.checked_chapters:
-            self.checked_chapters.remove(chapter_link)
+    def on_checkbox_checked(self, chapter_info: Tuple[str, str]):
+        if chapter_info in self.checked_chapters:
+            self.checked_chapters.remove(chapter_info)
         else:
-            self.checked_chapters.add(chapter_link)
+            self.checked_chapters.add(chapter_info)
+        if len(self.checked_chapters) > 0: self.parent.download_button.configure(state="normal")
+        else: self.parent.download_button.configure(state="disabled")
 
     def check_all(self):
         for checkbox in self.checkboxes:
             chapter_link = self.checkboxes[checkbox].cget("onvalue")
             self.checked_chapters.add(chapter_link)
             self.checkboxes[checkbox].select()
+            self.parent.download_button.configure(state="normal")
 
     def uncheck_all(self):
         for checkbox in self.checkboxes:
             chapter_link = self.checkboxes[checkbox].cget("onvalue")
             if chapter_link in self.checked_chapters: self.checked_chapters.remove(chapter_link)
             self.checkboxes[checkbox].deselect()
+            self.parent.download_button.configure(state="disabled")
+
 
 
 class MangaResultFrame(tk.CTkFrame):
@@ -93,8 +100,6 @@ class MangaResultFrame(tk.CTkFrame):
         button.grid(row=0, column=2, padx=8, pady=8)
 
     def get_manga_details(self, manga_url: str):
-        # TODO: Switch to another view / popup to see details about the manga (chapters, author, etc...)
-        # TODO: Let the user chose which chapter they want to download
         manga_details_window = MangaDetailsWindow(manga_url, manga_image=self.image_url)
         pass
 
@@ -106,14 +111,14 @@ class MangaDetailsWindow(tk.CTkToplevel):
         self.after(100, self.focus)
         self.after(100, self.lift)
 
-        manga_data: Manga = request_manga_data(manga_url)
+        self.manga_data: Manga = request_manga_data(manga_url)
 
-        self.manga_title: str = manga_data['title']
-        self.manga_author: str = manga_data['author']
-        self.manga_artist: str = manga_data['artist']
-        self.manga_description: str = manga_data['description'][:100] + "..."
-        self.manga_genre: List[str] = manga_data['genre']
-        self.manga_chapters: Tuple[str, str] = manga_data['chapters']
+        self.manga_title: str = self.manga_data['title']
+        self.manga_author: str = self.manga_data['author']
+        self.manga_artist: str = self.manga_data['artist']
+        self.manga_description: str = self.manga_data['description'][:100] + "..."
+        self.manga_genre: List[str] = self.manga_data['genre']
+        self.manga_chapters: Tuple[str, str] = self.manga_data['chapters']
         self.manga_image: tk.CTkImage = get_manga_CTkImage(manga_image, (172, 230))
 
         self.title(self.manga_title)
@@ -143,10 +148,10 @@ class MangaDetailsWindow(tk.CTkToplevel):
         genre = tk.CTkLabel(self, text=', '.join(self.manga_genre), font=info_font, text_color="#474747")
         description = tk.CTkLabel(self, text=self.manga_description, wraplength=600, anchor="nw", justify="left", height=3,
                                   font=description_font, text_color="#e0e0e0")
-        self.manga_chapter_frame = MangaDetailsChaptersFrame(self, self.manga_chapters)
+        self.manga_chapter_frame = MangaDetailsChaptersFrame(self, chapters=self.manga_chapters)
         check_all_button = tk.CTkButton(self, text="Check All", command=self.manga_chapter_frame.check_all)
         uncheck_all_button = tk.CTkButton(self, text="Uncheck All", command=self.manga_chapter_frame.uncheck_all)
-        download_button = tk.CTkButton(self, text="Download", command=self.start_download)
+        self.download_button = tk.CTkButton(self, text="Download", command=self.start_download, state="disabled")
 
         image.grid(row=0, rowspan=4, column=0, padx=10, pady=10, sticky="nwe")
         title.grid(row=0, column=1, columnspan=2, padx=10, pady=10, sticky="nw")
@@ -156,10 +161,17 @@ class MangaDetailsWindow(tk.CTkToplevel):
         self.manga_chapter_frame.grid(row=4, column=0, columnspan=3, padx=10, pady=10, sticky="nsew")
         uncheck_all_button.grid(row=5, column=0, padx=10, pady=10, sticky="nsew")
         check_all_button.grid(row=5, column=1, padx=10, pady=10, sticky="nsew")
-        download_button.grid(row=5, column=2, padx=10, pady=10, sticky="nsew")
+        self.download_button.grid(row=5, column=2, padx=10, pady=10, sticky="nsew")
 
     def start_download(self):
         print(len(self.manga_chapter_frame.checked_chapters))
+        print(list(self.manga_chapter_frame.checked_chapters))
+        self.manga_data['chapters'] = list(self.manga_chapter_frame.checked_chapters)
+        print(self.manga_data)
+        download_task = Thread(target=create_folder_structure_and_fill_chapters, args=(self.manga_data,))
+        download_task.start()
+
+        # TODO: Kill threads on app kill
 
 
 class App(tk.CTk):

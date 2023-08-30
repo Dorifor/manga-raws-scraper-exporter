@@ -52,7 +52,8 @@ def request_chapter_data(url: str) -> List[str]:
     return chapter_pages
 
 
-def create_folder_structure_and_fill_chapters(manga_data: str) -> None:
+def create_folder_structure_and_fill_chapters(manga_data: Manga) -> None:
+    if not os.path.exists(RAWS_PATH): os.mkdir(RAWS_PATH)
     manga_path = RAWS_PATH + remove_illegal_characters(manga_data['title'])
     os.mkdir(manga_path)
     log("Created dir: " + manga_path)
