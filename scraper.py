@@ -16,7 +16,7 @@ class Manga(TypedDict):
     artist: str
     description: str
     genre: List[str]
-    chapters: Tuple[str, str]
+    chapters: Tuple[str, str] # chapter_name, chapter_link
 
 
 def remove_raw_free(string: str) -> str:
@@ -29,13 +29,18 @@ def remove_illegal_characters(string: str) -> str:
     return string
 
 
-def request_search(query) -> List[Tuple[str, str, str]]:
-    page = requests.get(SEARCH_URL + query)
+# Returns ([manga_title, manga_link, manga_img_url], previous_page_link, next_page_link)
+def request_search(query: str, isPaginationLink: bool) -> Tuple[List[Tuple[str, str, str]], str, str]:
+    url = query if isPaginationLink else SEARCH_URL + query
+    page = requests.get(url)
     soup = bs4(page.content, "html.parser")
     manga_list = soup.select(".manga-item .thumb > a")
     manga_list = list(map(lambda manga: (remove_raw_free(manga["title"]), manga['href'], manga.img['data-src']), manga_list))
-    log(manga_list)
-    return manga_list
+    previous_page = soup.select(".pagination .prev a")
+    previous_page = previous_page[0]['href'] if previous_page else None
+    next_page = soup.select(".pagination .next a")
+    next_page = next_page[0]['href'] if next_page else None
+    return (manga_list, previous_page, next_page)
 
 
 def request_chapter_data(url: str) -> List[str]:
@@ -71,7 +76,9 @@ def request_manga_data(url) -> Manga:
     page = requests.get(url)
     soup = bs4(page.content, "html.parser") # same parser as default python
 
-    manga_title = remove_raw_free(soup.title)
+    log(soup.title.text)
+
+    manga_title = remove_raw_free(soup.title.text)
     manga_author = soup.select("div.authors-content > a")[0].string
     manga_artist = soup.select("div.artists-content > a")
     manga_artist = manga_artist[0].string if manga_artist else ""
