@@ -9,12 +9,6 @@ from threading import Thread
 from tkinter import filedialog
 from settings import Settings
 
-tk.set_appearance_mode("System")
-tk.set_default_color_theme("dark-blue")
-
-
-MEIRYO_FONT = None
-
 def get_manga_CTkImage(img_url: str, size: Tuple[int, int] = (90, 120)) -> tk.CTkImage:
     headers = {'Referer': "https://hachiraw.com/"}
     img_raw = requests.get(img_url, headers=headers, stream=True).raw
@@ -111,6 +105,7 @@ class FinishedDownloadPopup(tk.CTkToplevel):
     def __init__(self, manga_title: str):
         super().__init__()
         self.geometry("350x160")
+        self.after(250, lambda: self.iconbitmap('icon.ico'))
         self.after(100, self.focus)
         self.after(100, self.lift)
 
@@ -127,6 +122,7 @@ class MangaDetailsWindow(tk.CTkToplevel):
     def __init__(self, manga_url: str, manga_image: str):
         super().__init__()
         self.geometry("800x650")
+        self.after(250, lambda: self.iconbitmap('icon.ico'))
         self.after(100, self.focus)
         self.after(100, self.lift)
 
@@ -136,7 +132,8 @@ class MangaDetailsWindow(tk.CTkToplevel):
         self.manga_title: str = self.manga_data['title']
         self.manga_author: str = self.manga_data['author']
         self.manga_artist: str = self.manga_data['artist']
-        self.manga_description: str = self.manga_data['description'][:100] + "..."
+        self.manga_description: str = self.manga_data['description'][:100]
+        if len(self.manga_data['description']) > 100: self.manga_description += "..."
         self.manga_genre: List[str] = self.manga_data['genre']
         self.manga_chapters: Tuple[str, str] = self.manga_data['chapters']
         self.manga_image: tk.CTkImage = get_manga_CTkImage(manga_image, (172, 230))
@@ -163,7 +160,7 @@ class MangaDetailsWindow(tk.CTkToplevel):
         image = tk.CTkLabel(self, image=self.manga_image, text="")
         title = tk.CTkLabel(self, text=self.manga_title, wraplength=500, anchor="w", justify="left",
                             text_color="#d94343", font=title_font)
-        author = tk.CTkLabel(self, text=f"{self.manga_author} /// {self.manga_artist}", font=info_font,
+        author = tk.CTkLabel(self, text=f"{self.manga_author} - {self.manga_artist}", font=info_font,
                              text_color="#474747")
         genre = tk.CTkLabel(self, text=', '.join(self.manga_genre), font=info_font, text_color="#474747")
         description = tk.CTkLabel(self, text=self.manga_description, wraplength=600, anchor="nw", justify="left",
@@ -220,6 +217,7 @@ class SettingsWindow(tk.CTkToplevel):
         super().__init__()
         self.resizable(False, False)
         self.title("Settings")
+        self.after(250, lambda: self.iconbitmap('icon.ico'))
         self.geometry("600x380")
         self.after(200, self.focus)
         self.after(200, self.lift)
@@ -283,7 +281,6 @@ class SettingsWindow(tk.CTkToplevel):
                                                   onvalue=True, offvalue=False, variable=self.sfw_mode_value)
         sfw_mode_switch.grid(sticky="nw", padx=10, pady=10)
 
-
         save_button = tk.CTkButton(main, text="Save", command=self.save_settings)
         save_button.grid(padx=10, pady=10)
 
@@ -315,7 +312,8 @@ class App(tk.CTk):
     def __init__(self):
         super().__init__()
 
-        self.title("Hachiraw Parser")
+        self.title("Hachiraw Scraper")
+        self.after(250, lambda: self.iconbitmap('icon.ico'))
         self.geometry("820x680")
         self.resizable(False, True)
 
@@ -352,6 +350,7 @@ class App(tk.CTk):
         self.settings_window = None
 
     def init_search(self, pagination_link: str = None):
+        MEIRYO_FONT = tk.CTkFont(size=14, family="Meiryo")
         self.destroy_widgets(self.loading_text, self.manga_search_frame)
         self.loading_text = tk.CTkLabel(self, text="Loading...", font=MEIRYO_FONT)
         self.loading_text.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
@@ -391,7 +390,8 @@ class App(tk.CTk):
             if widget is not None: widget.destroy()
 
 
-
+tk.set_appearance_mode("System")
+tk.set_default_color_theme("dark-blue")
 Settings().load_settings()
 app = App()
 app.mainloop()
