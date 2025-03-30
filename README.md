@@ -1,9 +1,16 @@
-# Hachiraw Scraper
-Python scraper for hachiraws website, 50% usefulness 50% fun
+# Manga Raws Scraper Exporter
+GUI to explorer a (now down) website with dozens of scanned japanese raw manga.
 
-## Update 2024-01-22 : 
+# 🤨 Features
+- List manga
+- Search manga
+- Show manga details
+- List manga chapters
+- Download manga chapters (export to Mihon / Tachiyomi format, to import flawlessly later)
+- Download manager (multi-threaded)
+- Settings (NSFW Filter, Download rate, ...)
 
-the website seems to be down (no shit) so it won't work anymore, quality was shit anyway, here's a few screenshots of how it looked :
+# 📷 Screenshots
 
 ![Settings](https://github.com/Dorifor/hachiraws-scraper/assets/28139590/200ada52-bc75-4be2-9bd6-7ee4974d7911)
 ![Search](https://github.com/Dorifor/hachiraws-scraper/assets/28139590/8570d1b8-6e61-402b-bfb7-94d2c853a66d)
